@@ -111,7 +111,7 @@ export function ProjectCard({
 
         {/* Actions pinned to bottom */}
         <div className="mt-auto pt-4">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
               variant="outline"
@@ -125,20 +125,6 @@ export function ProjectCard({
             >
               <Heart className="mr-2 h-4 w-4" />
               Save
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="bg-transparent hover:bg-primary hover:text-white"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                // TODO: hire team action
-              }}
-            >
-              Hire Team
             </Button>
 
             <Button
