@@ -17,8 +17,9 @@ A full-stack web platform that connects student innovators with recruiters throu
 
 ## Live Deployment
 
-- **Frontend:** Add Vercel link here  
-- **Backend API:** Add Render link here  
+- **Frontend:**  https://frontend-teal-seven-91.vercel.app/
+ 
+- **Backend API:** https://innovation-marketplace.onrender.com/ 
 
 ---
 
