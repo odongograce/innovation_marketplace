@@ -90,7 +90,7 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <AuthButton />
 
-            {/* ✅ No nested button: Button is the button */}
+            {/* No nested button: Button is the button */}
             <div className="relative">
               <Button
                 type="button"
@@ -150,7 +150,7 @@ export function Navbar() {
                   <AuthButton />
                 </div>
 
-                {/* ✅ No nested button here either */}
+                {/* No nested button here either */}
                 <div className="relative">
                   <Button
                     type="button"

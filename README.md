@@ -1,108 +1,241 @@
-# innovation_marketplace
+#  Innovation Marketplace
 
-Moringa School Innovation Marketplace
+A full-stack web platform that connects student innovators with recruiters through a structured, role-based project marketplace.
 
- 1. Overview
+---
 
-The Moringa School Innovation Marketplace is an online platform built to turn student capstone projects into sustainable, market-ready innovations.
+## Project Description
 
-Each year, Moringa students create impressive and impactful software solutions. Unfortunately, many of these projects are only presented during demo day and then left unused. This platform addresses that gap by offering a centralized digital marketplace where:
+- Students submit and manage capstone projects  
+- Admins review and approve submissions  
+- Recruiters browse approved projects and evaluate talent  
+- Users can purchase official merchandise  
+- Payments are integrated via M-Pesa (Safaricom Sandbox)  
+- Structured review workflow with secure role-based access control  
 
--Students can showcase and manage their projects
--Recruiters and investors can discover emerging talent
--Projects can generate revenue
--Moringa School can sell branded merchandise
+---
 
-The platform functions as a digital portfolio platform, talent discovery space, and e-commerce store, helping students earn income, gain exposure, and strengthen their professional credibility before entering the job market.
+## Live Deployment
 
-2. Problem Statement
+- **Frontend:** Add Vercel link here  
+- **Backend API:** Add Render link here  
 
-Many capstone projects developed by Moringa students:
--Do not receive continued visibility
--Miss opportunities for monetization
--Are difficult for recruiters to find
+---
 
-As a result, valuable innovations and career prospects are often lost.
+## System Architecture
 
-The Innovation Marketplace addresses this challenge by building a lasting ecosystem that supports and promotes student innovation.
+- **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS, ShadCN UI  
+- **Backend:** Flask REST API  
+- **Database:** PostgreSQL / SQLite  
+- **Authentication:** NextAuth + JWT  
+- **Payments:** M-Pesa Daraja API (Sandbox)  
 
-  Key Features
- Student Capabilities
--Secure student registration and login (JWT authentication)
--Profile creation and management
--Project uploads including:
-   ~Project title
-   ~Detailed description
-   ~Technology stack
-   ~GitHub repository link
-   ~Live demo or video
-   ~Team member details
-   ~Category tags (e.g., HealthTech, EdTech, FinTech)
+The frontend communicates with the backend API to:
 
--Project performance analytics (optional)
--Option to list projects as “For Sale”
+- Handle authentication  
+- Manage projects  
+- Enforce role-based authorization  
+- Process payments  
+- Create and manage orders  
 
-  Project Discovery & Listings
- -Search functionality by:
-a.Category
-b.Technology stack
-c.Student name
+---
 
- -Advanced filtering options
--Highlighted or featured projects section (optional)
+## User Roles
 
-3. Project Detail View
--Comprehensive project description
--Screenshots or demo video
--GitHub repository link
--Live deployment link
--“Hire this Team” feature
--Purchase option (if enabled)
+### Student
 
-4. Merchandise E-Commerce Section
--Product listings (hoodies, mugs, stickers, etc.)
--Shopping cart functionality
--Checkout process
--Integrated payment solutions (M-Pesa / Stripe)
--Admin inventory control
+- Submit projects  
+- Upload thumbnails  
+- Add technologies and categories  
+- Edit their own submissions  
 
-5. Admin Dashboard
+###  Admin
 
--Review and approve/reject submitted projects
--Manage merchandise stock
--Track engagement metrics
--Oversee overall platform activity
+- Review submitted projects  
+- Approve or reject submissions  
+- Manage users  
+- Manage merchandise  
 
-6. Recruiter & Client Engagement
+###  Recruiter
 
--Hire/contact forms for recruiters
--Reviews and endorsements (optional)
--Booking or scheduling system (optional)
+- Access recruiter dashboard  
+- View approved projects only  
+- Filter by technology  
+- Search by student or team  
+- Evaluate project stack  
 
-7. Technology Stack
-Frontend
-  -React.js or Next.js
-  -Tailwind CSS or CSS Modules
+---
 
-Backend
-  -Flask RESTful API
-  -JWT-based authentication
+## Core Features
 
-Database
-  -PostgreSQL
+### Authentication & Authorization
 
-File Storage
-  -Cloudinary or AWS S3 (for media storage)
+- Role-based access control  
+- Secure login via NextAuth  
+- Protected recruiter dashboard  
+- Server-side session validation  
 
-Payment Integration
--M-Pesa Daraja API or Stripe API
+### Project Management
 
-Deployment
-  -Frontend: Vercel or Netlify
-  -Backend: Render, Railway, or Heroku
-  -Database: Cloud-hosted PostgreSQL
+- Create, edit, delete projects  
+- Upload thumbnail images  
+- Category and technology tagging  
+- Admin approval workflow  
+- Public page displays approved projects only  
 
-8. Security & Authentication
-   -JWT-based authentication
-   -Role-based access control (Student and Admin roles)
-   -Secure login with protected routes
+### Advanced Filtering & Sorting
+
+- Search by:
+  - Title  
+  - Description  
+  - Author  
+- Filter by category  
+- Sort by:
+  - Newest  
+  - Most viewed  
+  - Highest rated  
+
+###  Recruiter Dashboard
+
+- Displays approved submissions only  
+- Shows:
+  - Total approved projects  
+  - Unique students  
+  - Technologies count  
+- Live filtering and refresh functionality  
+
+### Merchandise Shop
+
+- Browse items  
+- Add to cart  
+- Checkout flow  
+- Order tracking  
+
+### M-Pesa Integration
+
+- STK Push (Sandbox)  
+- Secure credential handling via `.env`  
+- Token generation and payment request handling  
+- Order creation after successful payment  
+
+---
+
+##  Project Structure
+
+```
+innovation_marketplace/
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│
+├── server/
+│   ├── models.py
+│   ├── resources/
+│   ├── migrations/
+│
+└── README.md
+```
+
+---
+
+##  Installation & Setup
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/your-repo/innovation_marketplace.git
+cd innovation_marketplace
+```
+
+---
+
+### 2. Backend Setup
+
+```bash
+cd server
+pipenv install
+pipenv shell
+flask db upgrade
+flask run
+```
+
+Create a `.env` file inside `/server`:
+
+```
+MPESA_CONSUMER_KEY=
+MPESA_CONSUMER_SECRET=
+MPESA_SHORTCODE=
+MPESA_PASSKEY=
+JWT_SECRET_KEY=
+DATABASE_URL=
+```
+
+---
+
+### 3. Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Create a `.env.local` file inside `/frontend`:
+
+```
+NEXT_PUBLIC_API_URL=
+NEXTAUTH_SECRET=
+```
+
+---
+
+##  Approval Workflow
+
+1. Student submits project  
+2. Admin reviews project  
+3. Admin approves project  
+4. Approved project becomes visible on:
+   - Public `/projects` page  
+   - Recruiter dashboard  
+5. Unapproved projects remain hidden  
+
+---
+
+##  Security Considerations
+
+- Role-based route protection  
+- Server-side session validation  
+- Protected admin endpoints  
+- Environment variables for sensitive credentials  
+- Secure payment credential handling  
+
+---
+
+##  Learning Outcomes
+
+- Full-stack architecture  
+- RESTful API design  
+- Authentication and authorization  
+- Payment gateway integration  
+- Database modeling with SQLAlchemy  
+- State management in React  
+- Secure environment handling  
+
+---
+
+##  Contributors
+
+- **Joshua Imbusi** — Frontend & Integration  
+- **Ruth Jelagat** — Frontend & Integration
+- **Castro Kimaru** — Frontend & Integration
+- **Grace Odongo** - Backend 
+- **Mark Wagacha** — Backend 
+
+
+---
+
+##  License
+
+Developed for academic purposes.

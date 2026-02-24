@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ArrowRight, RefreshCcw } from 'lucide-react'
@@ -13,7 +13,7 @@ function ProjectSkeletonCard() {
   return (
     <div className="h-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur">
       <div className="h-44 w-full animate-pulse bg-white/10" />
-      <div className="p-5 space-y-3">
+      <div className="space-y-3 p-5">
         <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
         <div className="h-4 w-full animate-pulse rounded bg-white/10" />
         <div className="h-4 w-5/6 animate-pulse rounded bg-white/10" />
@@ -39,8 +39,11 @@ export function FeaturedProjects() {
     setLoading(true)
     setError(null)
     try {
+      // Always fetch 3
       const data = await fetchFeaturedProjects(3)
-      setProjects(data)
+
+      // Ensure max 3 rendered
+      setProjects(data.slice(0, 3))
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load featured projects.')
       setProjects([])
@@ -51,10 +54,10 @@ export function FeaturedProjects() {
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleViewAllProjects = () => {
-    // You can keep this protected, while still allowing "Explore" public in Hero
     if (!session) {
       const callbackUrl = window.location.pathname
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
@@ -63,17 +66,9 @@ export function FeaturedProjects() {
     router.push('/projects')
   }
 
-  const gridJustify =
-    projects.length < 3 ? 'lg:justify-center' : 'lg:justify-start'
-
-  const gridWidth = useMemo(() => {
-    if (projects.length === 1) return 'lg:max-w-xl'
-    if (projects.length === 2) return 'lg:max-w-5xl'
-    return 'w-full'
-  }, [projects.length])
-
   return (
     <section className="relative overflow-hidden py-20 md:py-28">
+      {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
@@ -91,23 +86,24 @@ export function FeaturedProjects() {
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="space-y-10">
+          {/* Header */}
           <div className="max-w-2xl space-y-3">
             <p className="inline-flex w-fit items-center rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-xs font-medium text-yellow-100">
               Featured
             </p>
 
-            <h2 className="text-4xl font-semibold tracking-tight text-slate-100 font-display">
+            <h2 className="text-4xl font-semibold tracking-tight text-slate-100">
               Featured <span className="text-yellow-400">Projects</span>
             </h2>
 
             <p className="text-lg text-slate-200/85">
-              Discover the most innovative student-built solutions on our
-              platform.
+              Discover the most innovative student-built solutions on our platform.
             </p>
           </div>
 
+          {/* Content */}
           {loading ? (
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
+            <div className="grid gap-8 auto-rows-fr md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <ProjectSkeletonCard key={i} />
               ))}
@@ -137,31 +133,23 @@ export function FeaturedProjects() {
               </p>
             </div>
           ) : (
-            <div className={`flex ${gridJustify}`}>
-              <div
-                className={[
-                  'grid gap-8 auto-rows-fr',
-                  'md:grid-cols-2',
-                  'lg:grid-cols-3',
-                  gridWidth,
-                ].join(' ')}
-              >
-                {projects.map((project) => (
-                  <div key={project.id} className="group relative rounded-2xl">
-                    <div
-                      className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-primary/25 via-yellow-400/12 to-accent/25 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
-                      aria-hidden="true"
-                    />
-                    <div className="relative transition-transform duration-300 group-hover:-translate-y-1">
-                      <ProjectCard {...project} variant="featuredDark" />
-                    </div>
+            <div className="grid gap-8 auto-rows-fr md:grid-cols-2 lg:grid-cols-3">
+              {projects.map((project) => (
+                <div key={project.id} className="group relative h-full">
+                  <div
+                    className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-primary/25 via-yellow-400/12 to-accent/25 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+                    aria-hidden="true"
+                  />
+                  <div className="relative h-full transition-transform duration-300 group-hover:-translate-y-1">
+                    <ProjectCard {...project} variant="featuredDark" />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="flex justify-center pt-2">
+          {/* CTA */}
+          {/* <div className="flex justify-center pt-2">
             <Button
               size="lg"
               variant="outline"
@@ -169,9 +157,10 @@ export function FeaturedProjects() {
               onClick={handleViewAllProjects}
             >
               View All Projects
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1"
+              />
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
     </section>

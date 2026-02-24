@@ -9,7 +9,6 @@ import {
   RefreshCcw,
   LogOut,
   ExternalLink,
-  BriefcaseBusiness,
   LayoutDashboard,
   FolderSearch,
 } from 'lucide-react'
@@ -31,6 +30,16 @@ type ApprovedProject = {
   description: string
   technologies?: string[] | string
   submitted_name?: string
+
+  // ✅ IMPORTANT: this is what makes images consistent
+  // Backend may return thumbnail_url (recommended)
+  thumbnail_url?: string
+
+  // Some endpoints may already use "image" instead
+  image?: string
+
+  // Optional: if recruiters endpoint includes categories/team
+  categories?: Array<{ id: number; name: string }>
   team_members?: Array<{ id: number; name: string }>
 }
 
@@ -46,7 +55,6 @@ function LoadingShell() {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto max-w-6xl px-4 py-10">
-        {/* Header skeleton */}
         <div className="space-y-3">
           <div className="h-8 w-72 rounded bg-muted animate-pulse" />
           <div className="h-4 w-[520px] max-w-full rounded bg-muted animate-pulse" />
@@ -56,7 +64,6 @@ function LoadingShell() {
           </div>
         </div>
 
-        {/* KPI skeletons */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-4">
@@ -67,7 +74,6 @@ function LoadingShell() {
           ))}
         </div>
 
-        {/* Filters skeleton */}
         <Card className="mt-8 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="h-10 rounded bg-muted animate-pulse md:col-span-2" />
@@ -79,7 +85,6 @@ function LoadingShell() {
           </div>
         </Card>
 
-        {/* Grid skeleton */}
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="h-80 p-4">
@@ -138,7 +143,6 @@ export default function RecruiterDashboard() {
 
   const [signingOut, setSigningOut] = useState(false)
 
-  // Guard route
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'recruiter') router.replace('/')
@@ -225,15 +229,13 @@ export default function RecruiterDashboard() {
   if (status === 'loading') return <LoadingShell />
   if (!session || session.user.role !== 'recruiter') return null
 
-  const recruiterName =
-    session.user.username ?? session.user.email?.split('@')?.[0] ?? 'Recruiter'
+  const recruiterName = session.user.username ?? session.user.email?.split('@')?.[0] ?? 'Recruiter'
 
   return (
     <div className="min-h-screen">
       <Navbar />
 
       <main className="container mx-auto max-w-6xl px-4 py-10">
-        {/* Hero header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-foreground/70">
@@ -248,12 +250,12 @@ export default function RecruiterDashboard() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link href="/projects">
+            {/* <Link href="/projects">
               <Button variant="outline" className="gap-2">
                 <ExternalLink className="h-4 w-4" />
                 Public Projects
               </Button>
-            </Link>
+            </Link> */}
 
             <Button variant="outline" className="gap-2" onClick={handleSignOut} disabled={signingOut}>
               <LogOut className="h-4 w-4" />
@@ -262,7 +264,6 @@ export default function RecruiterDashboard() {
           </div>
         </div>
 
-        {/* KPI cards */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4">
             <p className="text-sm text-foreground/60">Approved projects</p>
@@ -289,7 +290,6 @@ export default function RecruiterDashboard() {
           </Card>
         </div>
 
-        {/* Filters */}
         <Card className="mt-8 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="relative md:col-span-2">
@@ -315,7 +315,6 @@ export default function RecruiterDashboard() {
             </select>
           </div>
 
-          {/* Active filter chips + actions */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {query.trim() ? <Badge variant="secondary">Query: {query.trim()}</Badge> : null}
@@ -344,7 +343,6 @@ export default function RecruiterDashboard() {
           </div>
         </Card>
 
-        {/* Error */}
         {error && (
           <Card className="mt-6 border border-destructive/30 p-5">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -357,7 +355,6 @@ export default function RecruiterDashboard() {
           </Card>
         )}
 
-        {/* Grid */}
         <div className="mt-10">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -387,17 +384,22 @@ export default function RecruiterDashboard() {
                 const techs = normalizeTech(p.technologies)
                 const author = p.submitted_name ?? 'Student'
 
+                const image = (p.thumbnail_url ?? p.image ?? '').trim() || undefined
+
+                const category =
+                  (p.categories && p.categories[0] && p.categories[0].name) ? p.categories[0].name : 'Approved'
+
                 return (
                   <div key={p.id} className="space-y-3">
                     <ProjectCard
                       id={p.id}
                       title={p.title}
                       description={p.description}
+                      image={image}
                       technologies={techs}
-                      category="Approved"
+                      category={category}
                       author={author}
                     />
-
                   </div>
                 )
               })}

@@ -341,7 +341,7 @@ export default function AdminProjectDetailsPage() {
 
           {/* Info grid */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <InfoCard icon={User} label="Author" value={project.submitted_name || '—'} />
+            {/* <InfoCard icon={User} label="Team leader" value={project.submitted_name || '—'} /> */}
             <InfoCard icon={Calendar} label="Created" value={String(project.created_at).slice(0, 10) || '—'} />
             <InfoCard icon={Code2} label="Technologies" value={project.technologies || '—'} />
             <InfoCard icon={Github} label="GitHub URL" value={githubLink ? <span className="break-all">{githubLink}</span> : '—'} />
@@ -423,7 +423,7 @@ export default function AdminProjectDetailsPage() {
             )}
 
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">Decision reason (optional)</p>
+              <p className="text-sm font-medium">Decision reason </p>
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}

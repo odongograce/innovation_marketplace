@@ -237,7 +237,7 @@ export default function ProjectsManagement() {
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-6 py-4 text-left font-semibold text-foreground">Project</th>
-                  <th className="px-6 py-4 text-left font-semibold text-foreground">Team lead</th>
+                  {/* <th className="px-6 py-4 text-left font-semibold text-foreground">Team lead</th> */}
                   <th className="px-6 py-4 text-left font-semibold text-foreground">Category</th>
                   <th className="px-6 py-4 text-left font-semibold text-foreground">Status</th>
                   <th className="px-6 py-4 text-left font-semibold text-foreground">Submitted</th>
@@ -251,7 +251,7 @@ export default function ProjectsManagement() {
                     <td className="px-6 py-4">
                       <p className="font-medium text-foreground">{project.title}</p>
                     </td>
-                    <td className="px-6 py-4 text-foreground/70">{project.author}</td>
+                    {/* <td className="px-6 py-4 text-foreground/70">{project.author}</td> */}
                     <td className="px-6 py-4 text-foreground/70">{project.category}</td>
 
                     <td className="px-6 py-4">

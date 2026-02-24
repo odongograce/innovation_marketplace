@@ -24,6 +24,10 @@ type ApiProject = {
   submitted_name?: string
   status?: string
   created_at?: string
+
+  // ✅ NEW: backend thumbnail field (usually "/uploads/xxx.png")
+  thumbnail_url?: string | null
+
   team_members?: Array<{
     id: number
     first_name: string
@@ -197,7 +201,7 @@ export default function StudentDashboard() {
 
     try {
       const mine = await fetchMyProjectsFromAllProjects(uid, token)
-      setProjects(Array.isArray(mine) ? mine : [])
+      setProjects(Array.isArray(mine) ? (mine as ApiProject[]) : [])
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load projects')
     } finally {
@@ -284,7 +288,7 @@ export default function StudentDashboard() {
       author: p.submitted_name ?? username,
       views: 0,
       rating: 0,
-      image: undefined,
+      image: (p.thumbnail_url ?? '').trim() || undefined,
       status: statusLabel(p.status),
     }))
   }, [filtered, username])
@@ -465,7 +469,7 @@ export default function StudentDashboard() {
             <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
               {cards.map((p) => (
                 <div key={p.id} className="relative">
-                  {/* Status chip (non-invasive; doesn’t require ProjectCard changes) */}
+                  {/* Status chip */}
                   <div className="absolute right-3 top-3 z-10">
                     <Badge variant={statusBadgeVariant(p.status ?? 'Unknown')}>{p.status}</Badge>
                   </div>

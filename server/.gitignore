@@ -41,4 +41,5 @@ instance/app.db
 *.db
 server/instance/app.db
 .env
+uploads/
 

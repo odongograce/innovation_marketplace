@@ -75,7 +75,6 @@ export default function MerchandiseManagement() {
     image_url: '',
   })
 
-  // Edit state
   const [editItem, setEditItem] = useState<MerchandiseItem | null>(null)
   const [editState, setEditState] = useState<ProductFormState>({
     name: '',
@@ -162,7 +161,6 @@ export default function MerchandiseManagement() {
     }
   }
 
-  // Edit helpers
   const openEdit = (item: MerchandiseItem) => {
     setEditItem(item)
     setEditState({
@@ -289,9 +287,9 @@ export default function MerchandiseManagement() {
               <p className="text-sm font-medium text-muted-foreground">Average Price</p>
               <p className="mt-2 text-3xl font-bold text-foreground">{avgPrice.toLocaleString()} KES</p>
             </div>
-            <div className="rounded-lg bg-primary/10 p-3">
+            {/* <div className="rounded-lg bg-primary/10 p-3">
               <DollarSign className="h-6 w-6 text-primary" />
-            </div>
+            </div> */}
           </div>
         </Card>
       </div>
@@ -380,7 +378,6 @@ export default function MerchandiseManagement() {
 
                     <td className="px-6 py-4">
                       {item.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.image_url}
                           alt={item.name}

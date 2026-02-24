@@ -7,13 +7,6 @@ function authHeaders(token?: string) {
   }
 }
 
-/**
- * Expected backend behavior (recommended):
- * - POST   /projects/:id/like   -> { liked: true, likes_count: number }
- * - DELETE /projects/:id/like   -> { liked: false, likes_count: number }
- *
- * If your backend uses a different route, tell me the route and response shape.
- */
 export async function toggleProjectLike(args: {
   projectId: number
   like: boolean

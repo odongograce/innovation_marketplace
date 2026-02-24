@@ -7,12 +7,11 @@ export default function AnalyticsClient() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Ensure the server-rendered `data-google-analytics-opt-out` attribute
-    // exists on the client too to prevent hydration mismatch warnings.
+
     try {
       document.documentElement.setAttribute('data-google-analytics-opt-out', '')
     } catch (e) {
-      // ignore in non-browser envs
+    
     }
 
     setMounted(true)

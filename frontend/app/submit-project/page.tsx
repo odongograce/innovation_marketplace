@@ -32,6 +32,9 @@ function parseTechnologies(raw: string): string[] {
     .filter(Boolean)
 }
 
+const MAX_THUMBNAIL_SIZE = 3 * 1024 * 1024 
+const ALLOWED_THUMB_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
 const schema = z.object({
   title: z.string().trim().min(3, 'Title must be at least 3 characters').max(50, 'Max 50 characters'),
   description: z
@@ -52,6 +55,11 @@ const schema = z.object({
   technologies: z.string().trim().min(2, 'Technologies is required (e.g. React, Flask)'),
   category: z.enum(CATEGORY_OPTIONS),
   contributors: z.array(z.number()).optional(),
+  thumbnail: z
+    .instanceof(File)
+    .optional()
+    .refine((f) => !f || ALLOWED_THUMB_TYPES.includes(f.type as any), 'Thumbnail must be JPG, PNG, or WEBP')
+    .refine((f) => !f || f.size <= MAX_THUMBNAIL_SIZE, 'Thumbnail must be 3MB or less'),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -72,6 +80,14 @@ export default function SubmitProjectPage() {
   const [userOptions, setUserOptions] = useState<UserOption[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
 
+  const [thumbPreview, setThumbPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (thumbPreview) URL.revokeObjectURL(thumbPreview)
+    }
+  }, [thumbPreview])
+
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'student') router.replace('/auth/signin')
@@ -81,28 +97,25 @@ export default function SubmitProjectPage() {
     if (!token) return
 
     let cancelled = false
-      ; (async () => {
-        try {
-          setUsersLoading(true)
-          const users = await fetchUsers(String(token))
-          if (cancelled) return
+    ;(async () => {
+      try {
+        setUsersLoading(true)
+        const users = await fetchUsers(String(token))
+        if (cancelled) return
 
-          const opts: UserOption[] = (Array.isArray(users) ? users : [])
-            .map((u: any) => ({
-              id: Number(u.id),
-              label: `${u.first_name ?? ''} ${u.last_name ?? ''} (${u.email ?? ''})`.trim(),
-            }))
-            .filter((o) => Number.isFinite(o.id) && o.label.length > 0)
+        const opts: UserOption[] = (Array.isArray(users) ? users : [])
+          .map((u: any) => ({
+            id: Number(u.id),
+            label: `${u.first_name ?? ''} ${u.last_name ?? ''} (${u.email ?? ''})`.trim(),
+          }))
+          .filter((o) => Number.isFinite(o.id) && o.label.length > 0)
 
-          setUserOptions(opts)
-        } catch (e) {
-          // If this fails you’ll have no autocomplete options, but submission should still work.
-          // If you want to see it:
-          // toast({ title: 'Could not load users', description: 'Contributors list unavailable.', variant: 'destructive' })
-        } finally {
-          if (!cancelled) setUsersLoading(false)
-        }
-      })()
+        setUserOptions(opts)
+      } catch (e) {
+      } finally {
+        if (!cancelled) setUsersLoading(false)
+      }
+    })()
 
     return () => {
       cancelled = true
@@ -126,6 +139,7 @@ export default function SubmitProjectPage() {
       technologies: '',
       category: 'Other',
       contributors: [],
+      thumbnail: undefined, 
     },
     mode: 'onTouched',
   })
@@ -148,23 +162,23 @@ export default function SubmitProjectPage() {
 
     const submitted_name = (session?.user as any)?.username || (session?.user as any)?.email || 'Student'
 
-    // IMPORTANT:
-    // - category is sent as a string (backend will link it by name)
-    // - team_members is sent as user IDs array
-    const payload: CreateProjectPayload & { github_url: string; category: string; team_members: number[] } = {
-      title: values.title.trim(),
-      description: values.description.trim(),
-      video: values.video.trim(),
-      github_url: values.github_url.trim(),
-      technologies: values.technologies.trim(),
-      submitted_name,
-      team_members: values.contributors || [],
-      category: values.category,
-      category_ids: [], 
+    const fd = new FormData()
+    fd.append('title', values.title.trim())
+    fd.append('description', values.description.trim())
+    fd.append('video', values.video.trim())
+    fd.append('github_url', values.github_url.trim())
+    fd.append('technologies', values.technologies.trim())
+    fd.append('submitted_name', submitted_name)
+    fd.append('category', values.category)
+
+    ;(values.contributors || []).forEach((id) => fd.append('team_members', String(id)))
+
+    if (values.thumbnail) {
+      fd.append('thumbnail', values.thumbnail)
     }
 
     try {
-      await createProject(payload, String(token))
+      await createProject(fd as any, String(token))
 
       toast({
         title: 'Project submitted',
@@ -172,6 +186,11 @@ export default function SubmitProjectPage() {
       })
 
       reset()
+      setThumbPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+
       router.replace(DASHBOARD_PATH)
       router.refresh()
     } catch (e: unknown) {
@@ -267,7 +286,7 @@ export default function SubmitProjectPage() {
 
             {/* Video */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Demo Video URL</label>
+              <label className="text-sm font-medium">Demo</label>
               <Input placeholder="https://youtube.com/..." {...register('video')} />
               <FieldError message={errors.video?.message} />
             </div>
@@ -277,6 +296,71 @@ export default function SubmitProjectPage() {
               <label className="text-sm font-medium">GitHub Repo URL</label>
               <Input placeholder="https://github.com/username/repo" {...register('github_url')} />
               <FieldError message={errors.github_url?.message} />
+            </div>
+
+            {/* Thumbnail / Screenshot */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Thumbnail / Screenshot (optional)</label>
+
+              <div className="grid gap-3 sm:grid-cols-[160px_1fr] sm:items-start">
+                <div className="h-28 w-full overflow-hidden rounded-lg border bg-muted">
+                  {thumbPreview ? (
+                    <img src={thumbPreview} alt="Thumbnail preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-foreground/60">
+                      No image selected
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={isSubmitting}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+
+                      if (!file) {
+                        setValue('thumbnail', undefined, { shouldTouch: true, shouldValidate: true })
+                        setThumbPreview((prev) => {
+                          if (prev) URL.revokeObjectURL(prev)
+                          return null
+                        })
+                        return
+                      }
+
+                      setValue('thumbnail', file, { shouldTouch: true, shouldValidate: true })
+                      setThumbPreview((prev) => {
+                        if (prev) URL.revokeObjectURL(prev)
+                        return URL.createObjectURL(file)
+                      })
+                    }}
+                  />
+
+                  <FieldError message={errors.thumbnail?.message as any} />
+
+                  <p className="text-xs text-foreground/60">JPG/PNG/WEBP • max 3MB</p>
+
+                  {thumbPreview ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        setValue('thumbnail', undefined, { shouldTouch: true, shouldValidate: true })
+                        setThumbPreview((prev) => {
+                          if (prev) URL.revokeObjectURL(prev)
+                          return null
+                        })
+                      }}
+                    >
+                      Remove image
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             {/* Category */}
@@ -323,10 +407,6 @@ export default function SubmitProjectPage() {
                 disabled={isSubmitting}
                 placeholder={usersLoading ? 'Loading users…' : 'Search by name/email...'}
               />
-              <p className="text-xs text-foreground/60">
-                Loaded users: {userOptions.length} {usersLoading ? '(loading...)' : ''}
-              </p>
-
 
               <p className="text-xs text-foreground/60">
                 Choose from the dropdown to add contributors. They will be linked as contributors on the project.
@@ -340,7 +420,12 @@ export default function SubmitProjectPage() {
                 {isSubmitting ? 'Submitting…' : 'Submit Project'}
               </Button>
 
-              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => router.replace(DASHBOARD_PATH)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => router.replace(DASHBOARD_PATH)}
+              >
                 Cancel
               </Button>
             </div>

@@ -17,7 +17,7 @@ type UserRow = {
   email: string
   type: 'Student' | 'Recruiter' | 'Admin' | 'Other'
   status: 'active' | 'inactive' | string
-  projects: number // backend doesn't provide this yet, so show 0
+  projects: number 
   joined: string
 }
 

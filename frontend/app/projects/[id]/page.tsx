@@ -9,14 +9,7 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || ''
@@ -42,6 +35,24 @@ type BackendProject = {
   created_at: string
   team_members: BackendTeamMember[]
   categories: BackendCategory[]
+
+  thumbnail_url?: string | null
+}
+
+const FALLBACK_IMAGES = [
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735910/%D8%AF%D9%8A%D8%AC%D9%8A%D8%AA%D8%A7%D9%84_%D9%83%D8%A7%D8%B1%D8%AF_rmval4.jpg',
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735912/Self_Productivity_jogxol.jpg',
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735916/Ai-%D1%85%D1%83%D0%B4%D0%BE%D0%B6%D0%BD%D0%B8%D0%BA_h7wj5r.jpg',
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735910/Friendly_Futuristic_Robot_wbvmbh.jpg',
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735909/download_2_eeb4ac.jpg',
+]
+
+function resolveProjectImage(src?: string | null) {
+  const s = (src || '').trim()
+  if (!s) return null
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+  const base = BASE.endsWith('/') ? BASE.slice(0, -1) : BASE
+  return `${base}${s}`
 }
 
 function parseTechnologies(raw: string): string[] {
@@ -87,6 +98,21 @@ async function fetchAllProjects(): Promise<BackendProject[]> {
   return res.json()
 }
 
+async function contactProjectTeam(projectId: number, subject: string, message: string) {
+  const res = await fetch(`${BASE}/projects/${projectId}/contact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // If you later require JWT on this endpoint, add Authorization header here.
+    body: JSON.stringify({ subject, message }),
+  })
+
+  const data = await res.json().catch(() => ({} as any))
+  if (!res.ok) {
+    throw new Error(data?.error || 'Failed to send message')
+  }
+  return data as { ok: true; sent_to: number }
+}
+
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
@@ -98,8 +124,12 @@ export default function ProjectDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [copiedLink, setCopiedLink] = useState(false)
-  const [copiedEmails, setCopiedEmails] = useState(false)
   const [hireOpen, setHireOpen] = useState(false)
+
+  // Hire composer state
+  const [hireSubject, setHireSubject] = useState('')
+  const [hireMessage, setHireMessage] = useState('')
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -122,15 +152,19 @@ export default function ProjectDetailPage() {
     return projects.find((p) => p.id === projectId)
   }, [projects, projectId])
 
+  // Prefill subject when project resolves
+  useEffect(() => {
+    if (!project) return
+    setHireSubject((prev) => (prev.trim() ? prev : `Hiring inquiry: ${project.title}`))
+  }, [project])
+
   const technologies = useMemo(() => parseTechnologies(project?.technologies ?? ''), [project?.technologies])
 
   const categoryLabel = project?.categories?.[0]?.name ?? 'Other'
   const team = project?.team_members ?? []
   const teamSize = team.length
 
-  const statusLabel = project?.status
-    ? project.status.charAt(0).toUpperCase() + project.status.slice(1)
-    : ''
+  const statusLabel = project?.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : ''
 
   const demoLink = project && isProbablyUrl(project.video) ? project.video : undefined
 
@@ -144,9 +178,18 @@ export default function ProjectDetailPage() {
     const emails = (project?.team_members ?? [])
       .map((m) => (m.email ?? '').trim())
       .filter(Boolean)
-   
     return Array.from(new Set(emails))
   }, [project?.team_members])
+
+  const fallback = useMemo(() => {
+    const index = Math.floor(Math.random() * FALLBACK_IMAGES.length)
+    return FALLBACK_IMAGES[index]
+  }, [])
+
+  const heroImage = useMemo(() => {
+    const resolved = resolveProjectImage(project?.thumbnail_url)
+    return resolved || fallback
+  }, [project?.thumbnail_url, fallback])
 
   const onCopyLink = async () => {
     try {
@@ -163,46 +206,6 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const onCopyEmails = async () => {
-    if (teamEmails.length === 0) return
-    try {
-      await navigator.clipboard.writeText(teamEmails.join(', '))
-      setCopiedEmails(true)
-      window.setTimeout(() => setCopiedEmails(false), 1500)
-      toast({ title: 'Emails copied', description: 'Paste into your email client to contact the team.' })
-    } catch {
-      toast({
-        title: 'Copy failed',
-        description: 'Your browser blocked clipboard access.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const onOpenMailClient = () => {
-    if (!project) return
-    if (teamEmails.length === 0) {
-      toast({
-        title: 'No contact info available',
-        description: 'This project does not include team emails yet.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const to = teamEmails.join(',')
-    const subject = encodeURIComponent(`Hiring inquiry: ${project.title}`)
-    const body = encodeURIComponent(
-      `Hi ${project.submitted_name ?? 'Team'},\n\n` +
-        `I’m interested in your project "${project.title}".\n` +
-        `Could we schedule a quick call to discuss availability, timeline, and next steps?\n\n` +
-        `Thanks,\n` +
-        `Recruiter`
-    )
-
-    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
-  }
-
   const onHireClick = () => {
     if (!project) return
 
@@ -215,7 +218,50 @@ export default function ProjectDetailPage() {
       return
     }
 
+    // Prefill message if empty
+    setHireMessage((prev) => {
+      if (prev.trim()) return prev
+      return (
+        `Hi ${project.submitted_name ?? 'Team'},\n\n` +
+        `I’m interested in your project "${project.title}".\n` +
+        `Could we schedule a quick call to discuss availability, timeline, and next steps?\n\n` +
+        `Thanks,\nRecruiter`
+      )
+    })
+
     setHireOpen(true)
+  }
+
+  const onSendHireMessage = async () => {
+    if (!project) return
+
+    const subject = hireSubject.trim()
+    const message = hireMessage.trim()
+
+    if (!subject) {
+      toast({ title: 'Subject required', description: 'Please add a subject.', variant: 'destructive' })
+      return
+    }
+    if (!message) {
+      toast({ title: 'Message required', description: 'Please type a message.', variant: 'destructive' })
+      return
+    }
+
+    try {
+      setSending(true)
+      const out = await contactProjectTeam(project.id, subject, message)
+      toast({ title: 'Message sent', description: `Sent to ${out.sent_to} team member(s).` })
+      setHireOpen(false)
+      setHireMessage('')
+    } catch (e: any) {
+      toast({
+        title: 'Send failed',
+        description: e?.message ?? 'Could not send message',
+        variant: 'destructive',
+      })
+    } finally {
+      setSending(false)
+    }
   }
 
   if (loading) {
@@ -275,7 +321,7 @@ export default function ProjectDetailPage() {
       <Navbar />
 
       <main>
-        {/* HERO  */}
+        {/* HERO */}
         <section className="relative overflow-hidden border-b border-border">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-background to-background" />
           <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
@@ -283,58 +329,92 @@ export default function ProjectDetailPage() {
           <div className="pointer-events-none absolute -bottom-24 right-12 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
 
           <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-                  {categoryLabel}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`rounded-full px-3 py-1 text-xs border ${getStatusBadgeVariant(project.status)}`}
-                >
-                  {statusLabel}
-                </Badge>
+            <div className="grid gap-8 lg:grid-cols-3 lg:items-start">
+              {/* Left: text */}
+              <div className="lg:col-span-2 max-w-3xl">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                    {categoryLabel}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-3 py-1 text-xs border ${getStatusBadgeVariant(project.status)}`}
+                  >
+                    {statusLabel}
+                  </Badge>
+                </div>
+
+                <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{project.title}</h1>
+                <p className="mt-3 text-base text-foreground/60 sm:text-lg">{shortDescription}</p>
+
+                <div className="mt-5 flex flex-wrap gap-4 text-sm text-foreground/60">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>Submitted {formatDate(project.created_at)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span>{teamSize} team members</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span>Submitted by {project.submitted_name}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button onClick={onHireClick}>
+                    <BriefcaseBusiness className="mr-2 h-4 w-4" />
+                    Contact / Hire
+                  </Button>
+
+                  {demoLink && (
+                    <a href={demoLink} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline">
+                        <Globe className="mr-2 h-4 w-4" />
+                        Demo
+                      </Button>
+                    </a>
+                  )}
+
+                  <Button variant="outline" onClick={onCopyLink}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    {copiedLink ? 'Copied' : 'Share'}
+                  </Button>
+                </div>
               </div>
 
-              <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{project.title}</h1>
-              <p className="mt-3 text-base text-foreground/60 sm:text-lg">{shortDescription}</p>
-
-              <div className="mt-5 flex flex-wrap gap-4 text-sm text-foreground/60">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Submitted {formatDate(project.created_at)}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{teamSize} team members</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span>Submitted by {project.submitted_name}</span>
-                </div>
-              </div>
-
-              {/* Primary actions */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Button onClick={onHireClick}>
-                  <BriefcaseBusiness className="mr-2 h-4 w-4" />
-                  Contact / Hire
-                </Button>
-
-                {demoLink && (
-                  <a href={demoLink} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline">
-                      <Globe className="mr-2 h-4 w-4" />
-                      Demo
-                    </Button>
-                  </a>
-                )}
-
-                <Button variant="outline" onClick={onCopyLink}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copiedLink ? 'Copied' : 'Share'}
-                </Button>
+              {/* Right: thumbnail */}
+              <div className="lg:col-span-1">
+                <Card className="overflow-hidden border-border/60 bg-background/70 backdrop-blur">
+                  <div className="relative aspect-video w-full bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={heroImage}
+                      alt={`${project.title} preview`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        ; (e.currentTarget as HTMLImageElement).src = fallback
+                      }}
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/0 to-transparent"
+                      aria-hidden="true"
+                    />
+                    <div className="absolute left-3 top-3">
+                      <Badge variant="secondary" className="rounded-full bg-white/90 text-gray-900">
+                        Preview
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm font-medium">Project thumbnail</p>
+                    <p className="mt-1 text-xs text-foreground/60">Uploaded by the student during submission.</p>
+                  </div>
+                </Card>
               </div>
             </div>
           </div>
@@ -378,9 +458,7 @@ export default function ProjectDetailPage() {
                     <h2 className="text-xl font-bold sm:text-2xl">Demo</h2>
                     <Card className="border-border/60 bg-background/70 p-6 backdrop-blur">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="text-sm text-foreground/60">
-                          Open the project demo/video in a new tab.
-                        </div>
+                        <div className="text-sm text-foreground/60">Open the project demo/video in a new tab.</div>
                         <a href={demoLink} target="_blank" rel="noopener noreferrer">
                           <Button>
                             <Globe className="mr-2 h-4 w-4" />
@@ -458,66 +536,74 @@ export default function ProjectDetailPage() {
           </div>
         </section>
 
-        {/* HIRE MODAL */}
+        {/* HIRE MODAL (FIXED LAYOUT) */}
         <Dialog open={hireOpen} onOpenChange={setHireOpen}>
           <DialogTrigger asChild>
-              <span className="hidden" />
+            <span className="hidden" />
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Contact the team</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-6">
+              <DialogHeader>
+                <DialogTitle>Contact the team</DialogTitle>
+              </DialogHeader>
+            </div>
 
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border/60 bg-background p-4">
-                <div className="text-sm font-semibold">Team emails</div>
-                <div className="mt-2 space-y-2">
-                  {teamEmails.length > 0 ? (
-                    teamEmails.map((email) => (
-                      <div
-                        key={email}
-                        className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm">{email}</p>
-                        </div>
-                        <a
-                          href={`mailto:${encodeURIComponent(email)}`}
-                          className="shrink-0"
-                          aria-label={`Email ${email}`}
-                        >
-                          <Button size="sm" variant="outline">
-                            <Mail className="mr-2 h-4 w-4" />
-                            Email
-                          </Button>
-                        </a>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No team emails available.</p>
-                  )}
-                </div>
+            {/* Body */}
+            <div className="px-6 pb-4 pt-4 space-y-4">
+              <div className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-foreground/70">
+                Your message will be sent to <span className="font-semibold">{teamEmails.length}</span> team member
+                {teamEmails.length === 1 ? '' : 's'} automatically.
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button variant="outline" onClick={onCopyEmails} disabled={teamEmails.length === 0}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {copiedEmails ? 'Copied' : 'Copy all emails'}
-                </Button>
-
-                <Button onClick={onOpenMailClient} disabled={teamEmails.length === 0}>
-                  <BriefcaseBusiness className="mr-2 h-4 w-4" />
-                  Open mail client
-                </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Subject</label>
+                <input
+                  value={hireSubject}
+                  onChange={(e) => setHireSubject(e.target.value)}
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder={`Hiring inquiry: ${project.title}`}
+                />
               </div>
 
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-foreground/60">
-                Tip: Use “Copy all emails” if you prefer contacting the team through a different tool (LinkedIn, CRM, etc.).
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message</label>
+                <textarea
+                  value={hireMessage}
+                  onChange={(e) => setHireMessage(e.target.value)}
+                  className="min-h-[160px] w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Type your message..."
+                />
+              </div>
+
+              {/* <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-xs text-foreground/60">
+                This sends via your backend (Resend). No redirect, no mailto.
+              </div> */}
+            </div>
+
+            {/* Footer (buttons) */}
+            <div className="px-6 py-4 border-t border-border/60 bg-background/80">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 min-w-0"
+                  onClick={() => setHireOpen(false)}
+                  disabled={sending}
+                >
+                  Cancel
+                </Button>
+
+                <Button className="flex-1 min-w-0" onClick={onSendHireMessage} disabled={sending}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {sending ? 'Sending…' : 'Send'}
+                </Button>
               </div>
             </div>
+
           </DialogContent>
         </Dialog>
+
       </main>
 
       <Footer />

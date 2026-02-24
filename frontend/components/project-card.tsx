@@ -36,8 +36,23 @@ const fallbackImages = [
   'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735910/Friendly_Futuristic_Robot_wbvmbh.jpg',
   'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735909/download_2_eeb4ac.jpg',
   'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735908/AI_Images_4k_-_Freepik_231224786924_jc3b5l.jpg',
-  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735916/Ai-%D1%85%D1%83%D0%B4%D0%BE%D0%B6%D0%BD%D0%B8%D0%BA_h7wj5r.jpg'
+  'https://res.cloudinary.com/drxd3fs4g/image/upload/v1770735916/Ai-%D1%85%D1%83%D0%B4%D0%BE%D0%B6%D0%BD%D0%B8%D0%BA_h7wj5r.jpg',
 ]
+
+const BASE = process.env.NEXT_PUBLIC_BASE_URL || ''
+
+function resolveImageUrl(src: string, fallback: string) {
+  const s = (src || '').trim()
+  if (!s) return fallback
+
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+
+  const base = (BASE || '').replace(/\/+$/, '')
+  if (!base) return s.startsWith('/') ? s : `/${s}`
+
+  const path = s.startsWith('/') ? s : `/${s}`
+  return `${base}${path}`
+}
 
 export function ProjectCard({
   id,
@@ -63,10 +78,14 @@ export function ProjectCard({
   const [likeCount, setLikeCount] = useState<number>(likesCount)
   const [likeLoading, setLikeLoading] = useState(false)
 
-  const randomFallback = useMemo(() => {
-  const index = Math.floor(Math.random() * fallbackImages.length)
-  return fallbackImages[index]
-  }, [])
+  const fallbackById = useMemo(() => {
+    const idx = Math.abs(Number(id) || 0) % fallbackImages.length
+    return fallbackImages[idx]
+  }, [id])
+
+  const resolvedImage = useMemo(() => {
+    return resolveImageUrl(image ?? '', fallbackById)
+  }, [image, fallbackById])
 
   const techs = useMemo(() => {
     if (Array.isArray(technologies)) return technologies.filter(Boolean)
@@ -94,7 +113,6 @@ export function ProjectCard({
 
     const nextLiked = !isLiked
 
-    // optimistic update
     setIsLiked(nextLiked)
     setLikeCount((c) => Math.max(0, c + (nextLiked ? 1 : -1)))
 
@@ -109,7 +127,6 @@ export function ProjectCard({
       if (typeof res.liked === 'boolean') setIsLiked(res.liked)
       if (typeof res.likes_count === 'number') setLikeCount(res.likes_count)
     } catch {
-      // revert on failure
       setIsLiked((prev) => !prev)
       setLikeCount((c) => Math.max(0, c + (nextLiked ? -1 : 1)))
     } finally {
@@ -121,7 +138,6 @@ export function ProjectCard({
 
   const cardClass = isDark
     ? [
-        // make Card a "group" so group-hover works
         'group relative h-full overflow-hidden rounded-2xl',
         'border border-white/10 bg-white/5',
         'shadow-2xl backdrop-blur',
@@ -156,36 +172,31 @@ export function ProjectCard({
 
   return (
     <Card className={cardClass}>
-      {/* subtle inner highlight for featuredDark */}
       {isDark && (
         <div
           className="pointer-events-none absolute inset-0 z-[1] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           aria-hidden="true"
           style={{
-            background:
-              'radial-gradient(700px circle at 50% 0%, rgba(250,204,21,0.16), transparent 55%)',
+            background: 'radial-gradient(700px circle at 50% 0%, rgba(250,204,21,0.16), transparent 55%)',
           }}
         />
       )}
 
-      {/* Whole card clickable */}
-      <Link
-        href={`/projects/${id}`}
-        className="absolute inset-0 z-0"
-        aria-label={`Open project ${title}`}
-      />
+      <Link href={`/projects/${id}`} className="absolute inset-0 z-0" aria-label={`Open project ${title}`} />
 
       {/* Image */}
       <div className="relative z-10 h-44 w-full overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-        src={image || randomFallback}
-        alt={title}
-        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        loading="lazy"
-      />
+          src={resolvedImage}
+          alt={title}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+          onError={(e) => {
+            ;(e.currentTarget as HTMLImageElement).src = fallbackById
+          }}
+        />
 
-
-        {/* overlay gradient */}
         <div
           className={`absolute inset-0 ${
             isDark
@@ -195,12 +206,10 @@ export function ProjectCard({
           aria-hidden="true"
         />
 
-        {/* Category badge */}
         <div className="absolute left-4 top-4 z-20">
           <Badge className={`${badgeClass} font-display`}>{category}</Badge>
         </div>
 
-        {/* Like button */}
         <div className="absolute right-4 top-4 z-20">
           <button
             type="button"
@@ -210,13 +219,7 @@ export function ProjectCard({
             aria-label={isLiked ? 'Unlike project' : 'Like project'}
           >
             <Heart
-              className={`h-4 w-4 ${
-                isLiked
-                  ? 'fill-red-500 text-red-500'
-                  : isDark
-                    ? 'text-white'
-                    : 'text-gray-700'
-              }`}
+              className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : isDark ? 'text-white' : 'text-gray-700'}`}
             />
             <span>{likeCount}</span>
           </button>
@@ -226,9 +229,7 @@ export function ProjectCard({
       {/* Content */}
       <div className="relative z-10 flex h-[calc(100%-11rem)] flex-col p-5">
         <div className="space-y-2">
-          <h3 className={`text-lg font-semibold leading-snug line-clamp-2 font-display ${titleClass}`}>
-            {title}
-          </h3>
+          <h3 className={`text-lg font-semibold leading-snug line-clamp-2 font-display ${titleClass}`}>{title}</h3>
           <p className={`text-sm line-clamp-3 ${descClass}`}>{description}</p>
         </div>
 
@@ -238,11 +239,7 @@ export function ProjectCard({
               <Badge
                 key={tech}
                 variant="outline"
-                className={
-                  isDark
-                    ? 'border-white/15 bg-white/5 text-xs text-slate-100/90'
-                    : 'border-primary/20 bg-primary/5 text-xs'
-                }
+                className={isDark ? 'border-white/15 bg-white/5 text-xs text-slate-100/90' : 'border-primary/20 bg-primary/5 text-xs'}
               >
                 {tech}
               </Badge>
@@ -257,9 +254,7 @@ export function ProjectCard({
               <Eye className="h-4 w-4" />
               {views}
             </span>
-            <span className="flex items-center gap-1">
-              {Number.isFinite(rating) ? rating.toFixed(1) : '0.0'}
-            </span>
+            <span className="flex items-center gap-1">{Number.isFinite(rating) ? rating.toFixed(1) : '0.0'}</span>
           </div>
         </div>
 

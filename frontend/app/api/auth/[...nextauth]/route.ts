@@ -61,7 +61,6 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      // user exists only on initial sign in
       if (user) {
         const u = user as AppUser
         token.id = u.id
@@ -74,7 +73,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Ensure user object exists
       session.user = {
         ...(session.user ?? {}),
         id: typeof token.id === "string" ? token.id : "",
@@ -83,7 +81,6 @@ export const authOptions: NextAuthOptions = {
         role: typeof token.role === "string" ? token.role : "",
       }
 
-        // Put accessToken at top-level of session (matches your frontend usage)
         ; (session as unknown as { accessToken?: string }).accessToken =
           typeof token.accessToken === "string" ? token.accessToken : undefined
 

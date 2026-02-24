@@ -14,6 +14,15 @@ async function safeJson(res: Response) {
   }
 }
 
+function normalizeProject(p: any) {
+  if (!p || typeof p !== 'object') return p
+  return {
+    ...p,
+
+    image: p.image ?? p.thumbnail_url ?? null,
+  }
+}
+
 export async function fetchMerchandise() {
   const res = await fetch(`${BASE}/merchandise`, { cache: 'no-store' })
   if (!res.ok) throw new Error('Failed to fetch merchandise')
@@ -49,7 +58,7 @@ export async function updateMerchandise(
   payload: Partial<{
     name: string
     description: string
-    price: number
+    price: string | number
     stock: number
     image_url: string
   }>,
@@ -91,7 +100,11 @@ export async function fetchProjects(token?: string) {
   })
 
   if (!res.ok) throw new Error('Failed to fetch projects')
-  return res.json()
+
+  const data = await res.json()
+  if (!Array.isArray(data)) return []
+
+  return data.map(normalizeProject)
 }
 
 export async function fetchMyProjectsFromAllProjects(userId: number, token?: string) {
@@ -131,17 +144,18 @@ export type CreateProjectPayload = {
   category?: string
 }
 
-export async function createProject(payload: CreateProjectPayload, token?: string) {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' }
-  if (token) {
-    const cleaned = token.startsWith('Bearer ') ? token.slice(7) : token
-    headers['Authorization'] = `Bearer ${cleaned}`
+export async function createProject(payload: CreateProjectPayload | FormData, token?: string) {
+  const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData
+
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
   }
 
   const res = await fetch(`${BASE}/projects`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(payload),
+    body: isFormData ? payload : JSON.stringify(payload),
   })
 
   const data = await safeJson(res)
@@ -170,7 +184,11 @@ export async function signup(payload: {
 export async function fetchApprovedProjects() {
   const res = await fetch(`${BASE}/recruiters/projects`, { cache: 'no-store' })
   if (!res.ok) throw new Error('Failed to fetch approved projects')
-  return res.json()
+
+  const data = await res.json()
+  if (!Array.isArray(data)) return []
+
+  return data.map(normalizeProject)
 }
 
 export type UpdateProfilePayload = {

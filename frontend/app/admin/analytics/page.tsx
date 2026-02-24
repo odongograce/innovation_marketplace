@@ -110,7 +110,6 @@ export default function Analytics() {
         const p = await fetchProjects()
         setProjects(Array.isArray(p) ? p : [])
 
-        // Users require admin JWT. If it fails, show warning but keep analytics working.
         if (token) {
           try {
             const u = await fetchAdminUsers(token)
@@ -167,7 +166,7 @@ export default function Analytics() {
       month: monthLabel(k),
       projects: projCounts.get(k) ?? 0,
       users: userCounts.get(k) ?? 0,
-      revenue: 0, // no backend totals yet
+      revenue: 0,
     }))
   }, [projects, users])
 

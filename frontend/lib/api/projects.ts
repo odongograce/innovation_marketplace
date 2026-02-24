@@ -27,7 +27,6 @@ export async function fetchProjects(): Promise<BackendProject[]> {
   return res.json()
 }
 
-/** ---- UI shape that ProjectCard expects ---- */
 export type ProjectCardVM = {
   id: number
   title: string
@@ -45,26 +44,20 @@ export function toProjectCardVM(p: BackendProject): ProjectCardVM {
     id: p.id,
     title: p.title,
     description: p.description,
-    // You don’t have an image field in backend yet — use video thumbnail or fallback.
-    // If video is a YouTube link, you can derive a thumbnail (optional; see note below).
     image: undefined,
-    technologies: p.technologies, // your card already supports CSV string
+    technologies: p.technologies, 
     category: p.categories?.[0]?.name ?? 'Uncategorized',
     author: p.submitted_name || 'Student Team',
-    // Backend doesn’t provide these yet; safe defaults:
     views: 0,
     rating: 0,
   }
 }
 
-/** Fetch “featured” projects for landing page */
 export async function fetchFeaturedProjects(limit = 4): Promise<ProjectCardVM[]> {
   const projects = await fetchProjects()
 
-  // Typically you only want approved projects on landing page
   const approved = projects.filter((p) => p.status === 'approved')
 
-  // “Featured” rule for now: newest approved first
   approved.sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )

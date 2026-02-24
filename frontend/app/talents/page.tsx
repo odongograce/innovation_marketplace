@@ -8,20 +8,13 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from '@/components/ui/dialog'
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { Mail, Search, RefreshCcw, Star } from 'lucide-react'
 import { fetchProjects } from '@/lib/api'
 
-const DEFAULT_AVATAR = '👩‍💻'
+const BASE = process.env.NEXT_PUBLIC_BASE_URL || ''
+const DEFAULT_AVATAR = '👤'
 
 interface Talent {
   id: string | number
@@ -33,8 +26,6 @@ interface Talent {
   skills: string[]
   projects: number
   rating: number
-
- 
   github?: string
   linkedin?: string
 }
@@ -48,6 +39,18 @@ interface Project {
     role?: string
     email?: string
   }>
+}
+
+async function contactTalent(userId: string | number, subject: string, message: string) {
+  const res = await fetch(`${BASE}/users/${userId}/contact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subject, message }),
+  })
+
+  const data = await res.json().catch(() => ({} as any))
+  if (!res.ok) throw new Error(data?.error || 'Failed to send message')
+  return data as { ok: true; sent_to: number }
 }
 
 function SkeletonTalentCard() {
@@ -106,38 +109,63 @@ function defaultSkillsFromRole(role: string) {
 function HireDialog({ talent }: { talent: Talent }) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
 
-  function onSubmit(e?: React.FormEvent) {
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setSubject((prev) => (prev.trim() ? prev : `Hiring inquiry: ${talent.name}`))
+    setMessage((prev) => {
+      if (prev.trim()) return prev
+      return (
+        `Hi ${talent.name},\n\n` +
+        `I came across your profile on Moringa Innovation Marketplace and would love to discuss an opportunity.\n\n` +
+        `Thanks,\nRecruiter`
+      )
+    })
+  }, [open, talent.name])
+
+  const onSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
     if (!talent.email) {
       toast({
         title: 'No contact email',
         description: 'This talent has no contact email available.',
+        variant: 'destructive',
       })
       return
     }
 
-    const subject = `Hiring Interest: ${talent.name}`
-    const body = `${message || 'Hello, I’d like to connect about an opportunity.'}
+    const s = subject.trim()
+    const m = message.trim()
 
-From: ${name || 'Anonymous'}
-Contact: ${email || 'Not provided'}
-`
-    const mailto = `mailto:${talent.email}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`
+    if (!s) {
+      toast({ title: 'Subject required', description: 'Please add a subject.', variant: 'destructive' })
+      return
+    }
+    if (!m) {
+      toast({ title: 'Message required', description: 'Please type a message.', variant: 'destructive' })
+      return
+    }
 
-    window.location.href = mailto
-    setOpen(false)
-
-    toast({
-      title: 'Opening email client',
-      description: `Composing message to ${talent.name}`,
-    })
+    try {
+      setSending(true)
+      await contactTalent(talent.id, s, m)
+      toast({ title: 'Message sent', description: `Sent to ${talent.name}.` })
+      setOpen(false)
+      setMessage('')
+    } catch (err: any) {
+      toast({
+        title: 'Send failed',
+        description: err?.message ?? 'Could not send message',
+        variant: 'destructive',
+      })
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -149,42 +177,56 @@ Contact: ${email || 'Not provided'}
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Hire {talent.name}</DialogTitle>
-          <DialogDescription>
-            Write a short message. We’ll open your email client to send it.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+        <div className="px-6 pt-6">
+          <DialogHeader>
+            <DialogTitle>Hire {talent.name}</DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <Input
-              placeholder="Your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+        <form onSubmit={onSend}>
+          <div className="px-6 pb-4 pt-4 space-y-4">
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-foreground/70">
+              Recipient: <span className="font-medium">{talent.email}</span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Subject</label>
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder={`Hiring inquiry: ${talent.name}`}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Message</label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="min-h-[140px]"
+                placeholder="Type your message..."
+              />
+            </div>
           </div>
 
-          <Textarea
-            placeholder="Message (brief)"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="min-h-[120px]"
-          />
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <DialogClose asChild>
-              <Button variant="outline" type="button">
+          <div className="px-6 py-4 border-t border-border/60 bg-background/80">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 min-w-0"
+                onClick={() => setOpen(false)}
+                disabled={sending}
+              >
                 Cancel
               </Button>
-            </DialogClose>
-            <Button type="submit">Continue</Button>
+
+              <Button type="submit" className="flex-1 min-w-0" disabled={sending}>
+                <Mail className="mr-2 h-4 w-4" />
+                {sending ? 'Sending…' : 'Send'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
@@ -275,10 +317,7 @@ export default function TalentsPage() {
       <main>
         {/* Header */}
         <section className="relative overflow-hidden border-b border-border py-12">
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-background"
-            aria-hidden="true"
-          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-background" aria-hidden="true" />
           <div
             className="absolute inset-0 opacity-70"
             aria-hidden="true"
@@ -364,7 +403,6 @@ export default function TalentsPage() {
                       key={talent.id}
                       className="group relative overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                     >
-                      {/* subtle hover glow */}
                       <div
                         className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-tr from-primary/10 via-yellow-400/10 to-accent/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
                         aria-hidden="true"
@@ -382,12 +420,8 @@ export default function TalentsPage() {
                           </div>
 
                           <div className="min-w-0 flex-1 space-y-1">
-                            <h3 className="truncate text-lg font-semibold font-display">
-                              {talent.name}
-                            </h3>
-                            <p className="text-sm font-medium text-yellow-600 dark:text-yellow-300">
-                              {talent.role}
-                            </p>
+                            <h3 className="truncate text-lg font-semibold font-display">{talent.name}</h3>
+                            <p className="text-sm font-medium text-yellow-600 dark:text-yellow-300">{talent.role}</p>
 
                             <div className="flex items-center gap-2 text-xs text-foreground/60 pt-1">
                               <span className="inline-flex items-center gap-1">
@@ -400,14 +434,12 @@ export default function TalentsPage() {
                           </div>
                         </div>
 
-                        {/* Bio */}
                         <p className="text-sm text-foreground/70 line-clamp-2">
                           {talent.bio?.trim()
                             ? talent.bio
                             : 'Capstone contributor with practical experience building real projects. Available for collaboration and opportunities.'}
                         </p>
 
-                        {/* Skills */}
                         <div className="flex flex-wrap gap-2">
                           {shownSkills.map((skill) => (
                             <Badge
@@ -425,25 +457,8 @@ export default function TalentsPage() {
                           )}
                         </div>
 
-                        {/* Actions */}
                         <div className="flex gap-2 pt-2">
                           <HireDialog talent={talent} />
-
-                          {/* If you don’t have real links, don’t show fake buttons */}
-                          {/* Later: add talent.github/talent.linkedin and render real links */}
-                          {/* <Button
-                            variant="outline"
-                            className="min-w-[120px]"
-                            onClick={() => {
-                              toast({
-                                title: 'Profile preview',
-                                description:
-                                  'This is a demo directory. Add profile links/bios in your backend to enable full profiles.',
-                              })
-                            }}
-                          >
-                            View profile
-                          </Button> */}
                         </div>
                       </div>
                     </Card>
@@ -453,9 +468,7 @@ export default function TalentsPage() {
             ) : (
               <Card className="mx-auto max-w-2xl p-10 text-center">
                 <h3 className="text-lg font-semibold font-display">No talents found</h3>
-                <p className="mt-2 text-sm text-foreground/60">
-                  Try a different keyword or choose “All” roles.
-                </p>
+                <p className="mt-2 text-sm text-foreground/60">Try a different keyword or choose “All” roles.</p>
 
                 <div className="mt-5 flex justify-center gap-2">
                   <Button

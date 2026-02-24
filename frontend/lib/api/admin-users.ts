@@ -32,8 +32,8 @@ export type AdminUser = {
   last_name: string
   email: string
   role: string
-  status: string // "active" | "inactive"
-  created_at: string // isoformat
+  status: string 
+  created_at: string 
 }
 
 export async function fetchAdminUsers(token: string): Promise<AdminUser[]> {

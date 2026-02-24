@@ -14,7 +14,6 @@ def require_admin():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
 
-    # Token identity doesn't map to a user (common if JWT identity is email instead of id)
     if not user:
         return None, ({"error": "Invalid token user. Please log in again."}, 401)
 
@@ -23,8 +22,6 @@ def require_admin():
 
     return user, None
 
-
-# adding category
 class CategoryCreate(Resource):
     @jwt_required()
     def post(self):
@@ -49,8 +46,6 @@ class CategoryCreate(Resource):
         db.session.commit()
         return {"message": f"Category '{category.name}' created"}, 201
 
-
-# approve or reject projects
 class ApproveProject(Resource):
     @jwt_required()
     def post(self, project_id):

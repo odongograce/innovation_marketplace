@@ -57,7 +57,7 @@ export function WhyChooseUs() {
 
   return (
     <section className="relative overflow-hidden py-20 md:py-24">
-      {/* Darker, premium background (less bright) */}
+      {/* Darker, premium background */}
       <div
         className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-background"
         aria-hidden="true"
